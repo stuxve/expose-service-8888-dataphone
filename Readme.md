@@ -43,7 +43,9 @@ This behavior demonstrates two important issues: the service accepts unauthentic
 The publicly posted report does not include raw screenshots or packet captures. Instead, sanitized images are referenced below so a vendor-facing report can contain visual evidence without exposing identifying or sensitive data.
 
 1. Network scan summary
+
 ![alt text](<2025-10-26 14_36_14-Captura TPV3.png>)
 
 2. Browser interaction
+
 ![alt text](image.png)
