@@ -48,4 +48,4 @@ The publicly posted report does not include raw screenshots or packet captures. 
 
 2. Browser interaction
 
-![alt text](image.png)
+![alt text](image-1.png)
