@@ -1,91 +1,49 @@
-# Paytef Dataphones — Remote Command Execution (RCE) Vulnerability
+# Dataphone A920 — Incorrect Access Control (Redacted)
 
 ## Overview
 
-This repository documents a security issue discovered in Paytef dataphone devices related to a service that accepts network packets. The vulnerability allows an unauthenticated attacker to send specially crafted packets to the target service which, due to insufficient authentication and improper validation of certain packet headers, may lead to remote command execution limited to that service's process context.
+This document summarizes an access-control issue observed in the Dataphone A920 (build v2025.07.161103). A network-facing service is exposed by default on the local network without authentication. The issue allows unauthenticated interaction with the device's service interface and may reveal implementation details in error responses.
 
-This README gives a high-level summary of the issue, impact, recommended mitigations, and responsible-disclosure guidance. **This document intentionally avoids providing exploit code or step-by-step instructions** to prevent misuse.
-
+This README provides a high-level description of the issue, impact, recommended mitigations, and responsible-disclosure guidance. It intentionally omits exploit code, detailed interaction steps, or other low-level instructions to prevent misuse.
 
 ## Vulnerability summary (high level)
 
-The service accepts incoming network packets and uses values from packet headers without adequate authentication and input validation. An attacker can submit a custom packet that exploits insufficient validation of those headers; as a result, the service may be induced to execute unintended commands or perform actions in its own process context.
+A service on the device is reachable over the local network and does not require authentication for TCP-layer connections. Unauthenticated clients can open a socket to the service and exchange data with it. In addition, certain HTTP requests to the service elicit error responses that disclose functional behavior, protocol identifiers used by the vendor, and the device build version.
 
-Key security weaknesses:
+Because the service processes unauthenticated input and returns informative error messages, an attacker on the same network may gain knowledge about the device’s internals and interact with the exposed service interface without credentials.
 
-* Lack of authentication or authorization for packets processed by the service.
-* Inadequate validation or sanitization of specific packet header fields.
-* Failure to implement robust input-handling and boundary checks in packet parsing logic.
+## Key security weaknesses
 
----
+* Service exposed by default on the local network with no authentication or access controls.
+* Sensitive implementation details (including protocol identifiers and build metadata) are revealed in error responses.
+* Insufficient hardening of the service interface to reject unauthenticated or unexpected requests.
+* Lack of network-level restrictions (e.g., firewall rules, interface binding) that would limit access to trusted hosts.
 
 ## Impact
 
-* **Scope of execution:** Remote command execution limited to the compromised service process (not claimed to escalate to full device root/system by default).
-* **Potential consequences:**
+**Scope of access:** Unauthenticated interaction with the device's exposed service process.
 
-  * Unauthorized manipulation or interruption of the service.
-  * Disclosure or tampering of data handled by that service.
-* **Exploitability:** The vulnerability is exploitable by sending crafted packets to the target service without authentication. No public exploit code is provided here.
+**Potential consequences:**
 
----
+* Unauthorized discovery and enumeration of device functionality and versions.
+* Interaction with the service that may allow manipulation of the exposed interface or unintended invocation of service functionality.
+* Greater ease for attackers to develop targeted attacks against the device given exposed diagnostic or identifying information.
+
+A formal severity and impact determination should be made following vendor analysis to clarify whether the issue affects only the service context or can lead to broader system compromise.
 
 ## Proof-of-concept (high level)
 
-A custom TCP packet was crafted and sent to the dataphone using a Python script. During testing was observed that several header fields in the packet can contain arbitrary data and are accepted by the device without strong validation or authentication. Because the service processes these header values directly, an unauthenticated packet can influence the device’s control flow.
+During testing, an unauthenticated TCP connection to the service was accepted and simple requests provoked error responses that contained:
 
-![alt text](<2025-10-26 14_18_43-Captura TPV1.png>)
+* Identifiers used by the device’s packet/protocol implementation.
+* The device build version (reported in the response).
 
+This behavior demonstrates two important issues: the service accepts unauthenticated connections
 
-As a result of this behavior, the dataphone launches its payment process when it receives such a packet. This demonstrates that network inputs — specifically certain packet headers — are being trusted by the service and can cause it to execute functionality (in this case, presentation of the payment UI and progression of the payment routine) without requiring legitimate device-initiated interaction.
+The publicly posted report does not include raw screenshots or packet captures. Instead, sanitized images are referenced below so a vendor-facing report can contain visual evidence without exposing identifying or sensitive data.
 
-![alt text](<2025-10-26 13_52_36-WhatsApp Image 2025-10-26 at 1.51.45 PM.png>)
+1. Network scan summary
+![alt text](<2025-10-26 14_36_14-Captura TPV3.png>)
 
----
-
-## Recommended mitigations and fixes
-
-The vendor/maintainers should consider the following actions to remediate this class of issues:
-
-1. **Input validation and parsing**
-
-   * Perform strict validation and canonicalization of all packet header fields and payloads.
-   * Apply boundary checks, length checks, and type checks before using header values.
-   * Use safe parsing libraries and avoid ad-hoc parsing logic that can be manipulated.
-
-2. **Authentication & authorization**
-
-   * Require strong mutual authentication for any control or command-like packets.
-   * Reject unauthenticated packets that attempt to perform privileged actions.
-   * Implement cryptographic message authentication (e.g., HMAC or signatures) for sensitive packet types.
-
-3. **Least privilege and process isolation**
-
-   * Run the service with the minimal privileges required.
-   * Use OS-level sandboxing / containerization where feasible so that successful exploitation is constrained.
-
-4. **Fail-safe behavior**
-
-   * On parsing errors or unexpected header values, fail closed (reject the packet) rather than proceed with assumptions.
-   * Log and rate-limit abnormal packet activity to detect abuse.
-
-5. **Network-level controls**
-
-   * Restrict access to the service via firewall rules, network segmentation, and ACLs.
-   * Avoid exposing the service to untrusted networks or the public Internet.
-
-6. **Secure updates & patching**
-
-   * Provide a firmware/software update that corrects parsing/authentication logic.
-   * Distribute patches through secure update mechanisms and advise users to install immediately.
-
-
-
-## Severity and classification
-
-* Preliminary severity: **High** (remote unauthenticated vector leading to command execution in a service).
-
-A full severity rating should be established after vendor analysis and confirmation of exact impact on device/system privileges.
-
-
-
+2. Browser interaction
+![alt text](image.png)
